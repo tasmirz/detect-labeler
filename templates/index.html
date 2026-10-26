@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>detect-labeler | Universal Domain-Agnostic CV Studio</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="logo-icon">🎯</div>
+      <div class="brand-text">
+        <span class="brand-title">detect-labeler</span>
+        <span class="brand-subtitle">UNIVERSAL CV ANNOTATOR</span>
+      </div>
+    </div>
+
+    <!-- Domain Preset Selector -->
+    <div class="header-section domain-selector-group">
+      <label class="control-label">Domain Preset:</label>
+      <select id="presetSelect" class="styled-select">
+        <option value="">-- Load Domain Preset --</option>
+      </select>
+    </div>
+
+    <!-- Annotation Mechanism Tool Selector -->
+    <div class="header-section tool-buttons-group">
+      <button id="toolManual" class="tool-btn active" title="Manual Bounding Box (Drag to create) [B]">
+        <span class="icon">📐</span> Manual Box
+      </button>
+      <button id="toolSnap" class="tool-btn" title="Smart Contour Snapping (Otsu & Canny edge detection) [S]">
+        <span class="icon">⚡</span> Smart Snap
+      </button>
+      <button id="toolClick" class="tool-btn" title="Click-to-Box (Single click floodfill segmentation) [C]">
+        <span class="icon">👆</span> Click-to-Box
+      </button>
+      <button id="toolPropose" class="tool-btn" title="Salient Proposals (Extract candidate objects across frame) [A]">
+        <span class="icon">✨</span> Auto-Propose
+      </button>
+    </div>
+
+    <!-- Export & Actions -->
+    <div class="header-actions">
+      <div class="format-select-wrapper">
+        <label class="control-label">Format:</label>
+        <select id="exportFormat" class="styled-select format-select">
+          <option value="yolo" selected>YOLO (.txt)</option>
+          <option value="coco">COCO (.json)</option>
+          <option value="voc">Pascal VOC (.xml)</option>
+          <option value="csv">CSV (.csv)</option>
+        </select>
+      </div>
+      <button id="btnSave" class="btn btn-primary" title="Save Annotations [Ctrl+S]">
+        <span>💾</span> Save
+      </button>
+      <button id="btnExportZip" class="btn btn-accent" title="Export Complete Dataset as ZIP">
+        <span>📦</span> Export ZIP
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="app-layout">
+    <!-- Left Sidebar: Taxonomy Manager -->
+    <aside class="sidebar sidebar-left">
+      <div class="panel-header">
+        <h3>Class Taxonomy</h3>
+        <span id="classCountBadge" class="badge">0 classes</span>
+      </div>
+
+      <div class="taxonomy-controls">
+        <div class="add-class-bar">
+          <input type="text" id="newClassInput" placeholder="New class name..." />
+          <button id="btnAddClass" class="btn btn-sm btn-outline">+ Add</button>
+        </div>
+        <div class="import-export-row">
+          <label class="btn btn-sm btn-ghost file-upload-label">
+            Import Classes
+            <input type="file" id="taxonomyFileInput" accept=".txt,.json,.yaml,.yml" hidden />
+          </label>
+          <button id="btnExportTaxonomy" class="btn btn-sm btn-ghost">Export</button>
+        </div>
+      </div>
+
+      <div class="class-palette" id="classPaletteList">
+        <!-- Dynamically populated class items -->
+      </div>
+
+      <div class="shortcuts-legend">
+        <h4>Keyboard Shortcuts</h4>
+        <ul>
+          <li><kbd>1</kbd> - <kbd>9</kbd> : Quick switch active class</li>
+          <li><kbd>B</kbd> : Manual Box Tool</li>
+          <li><kbd>S</kbd> : Smart Snap Tool</li>
+          <li><kbd>C</kbd> : Click-to-Box Tool</li>
+          <li><kbd>Del</kbd> / <kbd>Backspace</kbd> : Delete selected box</li>
+          <li><kbd>Ctrl+Z</kbd> : Undo</li>
+          <li><kbd>Ctrl+S</kbd> : Save annotations</li>
+          <li><kbd>Space</kbd> + Drag : Pan canvas</li>
+          <li><kbd>Wheel</kbd> : Zoom canvas</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Center Workspace: Interactive Canvas -->
+    <section class="canvas-workspace">
+      <!-- Canvas HUD Floating Toolbar -->
+      <div class="canvas-hud">
+        <div class="hud-left">
+          <span class="hud-item" id="hudActiveTool">Tool: <strong>Manual</strong></span>
+          <span class="hud-item" id="hudCoords">X: 0, Y: 0</span>
+          <span class="hud-item" id="hudBoxDims">Size: 0 × 0</span>
+        </div>
+        <div class="hud-right">
+          <button id="btnZoomOut" class="hud-btn" title="Zoom Out">-</button>
+          <span class="hud-item" id="hudZoom">100%</span>
+          <button id="btnZoomIn" class="hud-btn" title="Zoom In">+</button>
+          <button id="btnZoomFit" class="hud-btn" title="Fit to Screen">Fit</button>
+          <button id="btnCrosshairToggle" class="hud-btn active" title="Toggle Crosshairs">✛ Crosshair</button>
+        </div>
+      </div>
+
+      <!-- Canvas Container -->
+      <div class="canvas-viewport" id="canvasViewport">
+        <canvas id="annotationCanvas"></canvas>
+      </div>
+
+      <!-- Status Notification Bar -->
+      <div id="statusToast" class="status-toast hidden">Ready</div>
+    </section>
+
+    <!-- Right Sidebar: Image Filmstrip & Box Inspector -->
+    <aside class="sidebar sidebar-right">
+      <!-- Tabs for Right Sidebar -->
+      <div class="tab-header">
+        <button class="tab-btn active" data-tab="tabBoxes">Annotations (<span id="boxCountLabel">0</span>)</button>
+        <button class="tab-btn" data-tab="tabImages">Images (<span id="imageCountLabel">0</span>)</button>
+        <button class="tab-btn" data-tab="tabSettings">Assistance</button>
+      </div>
+
+      <!-- Tab 1: Box Inspector -->
+      <div class="tab-content active" id="tabBoxes">
+        <div class="boxes-list" id="boxesList">
+          <!-- Dynamically populated box items -->
+        </div>
+      </div>
+
+      <!-- Tab 2: Image Gallery Filmstrip -->
+      <div class="tab-content" id="tabImages">
+        <div class="image-upload-zone">
+          <label class="btn btn-outline btn-full file-upload-label">
+            + Upload Custom Images
+            <input type="file" id="imageUploadInput" multiple accept="image/*" hidden />
+          </label>
+        </div>
+        <div class="images-filmstrip" id="imagesFilmstrip">
+          <!-- Dynamically populated images -->
+        </div>
+      </div>
+
+      <!-- Tab 3: Smart Assistance Settings -->
+      <div class="tab-content" id="tabSettings">
+        <div class="settings-group">
+          <label class="settings-label">
+            <span>Contour Snap Context Padding:</span>
+            <span id="paddingVal">20%</span>
+          </label>
+          <input type="range" id="snapPaddingInput" min="5" max="50" value="20" class="styled-slider" />
+          <p class="settings-hint">Expands search area around user's rough box to detect edge gradients.</p>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">
+            <span>Click-to-Box Radius:</span>
+            <span id="radiusVal">150 px</span>
+          </label>
+          <input type="range" id="clickRadiusInput" min="50" max="350" value="150" class="styled-slider" />
+          <p class="settings-hint">Search radius for floodfill and edge boundary expansion.</p>
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">
+            <span>Max Auto-Proposals:</span>
+            <span id="proposalsVal">15</span>
+          </label>
+          <input type="range" id="maxProposalsInput" min="5" max="50" value="15" class="styled-slider" />
+          <p class="settings-hint">Number of salient candidate objects generated per frame.</p>
+        </div>
+
+        <div class="model-status-box">
+          <h4>Assistance Engine Status</h4>
+          <div class="status-indicator online">
+            <span class="dot"></span> OpenCV Edge/Contour Snapper: <strong>Ready</strong>
+          </div>
+          <div class="status-indicator online">
+            <span class="dot"></span> FloodFill Segmenter: <strong>Ready</strong>
+          </div>
+          <div class="status-indicator offline">
+            <span class="dot"></span> Optional Neural Weights (.pt / .onnx): <em>Plug-and-play hook available</em>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="/static/js/canvas.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

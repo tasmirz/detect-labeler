@@ -1,0 +1,10 @@
+{
+  "taxonomy_name": "Indoor Electronics",
+  "classes": [
+    "monitor",
+    "keyboard",
+    "laptop",
+    "coffee_mug",
+    "desk_lamp"
+  ]
+}

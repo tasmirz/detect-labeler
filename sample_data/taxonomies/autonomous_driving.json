@@ -1,0 +1,9 @@
+{
+  "taxonomy_name": "Autonomous Driving",
+  "classes": [
+    "car",
+    "pedestrian",
+    "traffic_light",
+    "bicycle"
+  ]
+}

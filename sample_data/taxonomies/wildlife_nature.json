@@ -1,0 +1,9 @@
+{
+  "taxonomy_name": "Wildlife Nature",
+  "classes": [
+    "deer",
+    "bird",
+    "tree_trunk",
+    "boulder"
+  ]
+}

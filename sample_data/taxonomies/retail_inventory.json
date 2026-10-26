@@ -1,0 +1,10 @@
+{
+  "taxonomy_name": "Retail Inventory",
+  "classes": [
+    "cereal_box",
+    "soda_can",
+    "juice_bottle",
+    "snack_bag",
+    "shampoo"
+  ]
+}

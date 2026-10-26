@@ -1,0 +1,10 @@
+{
+  "taxonomy_name": "Aerial Harbor",
+  "classes": [
+    "cargo_ship",
+    "speedboat",
+    "warehouse",
+    "storage_tank",
+    "semi_truck"
+  ]
+}
